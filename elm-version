@@ -1,0 +1,308 @@
+import Html exposing (beginnerProgram, div, button, text)
+import Html.Events exposing (onClick)
+import List
+
+
+main =
+  beginnerProgram { model = model, view = view, update = update }
+  
+  
+-- MODEL
+
+type alias Model =
+  { population: Int
+  , humans: List Villager
+  , vampires: List Villager
+  , humanNames: List String
+  , vampireNames: List String
+  , humanIndex: Int
+  , vampireIndex: Int
+  , aHumanIsDying: Bool
+  }
+  
+model = 
+  { population = 0
+  , humans = []
+  , vampires = []
+  , humanNames = ["Maggie", "Jack", "Jill", "Nathan", "Sam"]
+  , vampireNames = ["Kanaya", "Victoire", "Horatio", "Everild", "Donovan"]
+  , humanIndex = 0
+  , vampireIndex = 0
+  , aHumanIsDying = False}
+  
+type alias Villager =
+  { name : String
+  , health : Int
+  , strength : Int}
+
+
+
+-- UPDATE
+
+type Msg = AddHuman | AddVampire | Interact
+
+update: Msg -> Model -> Model
+update msg model =
+  case msg of
+    AddHuman ->
+      { population = model.population + 1
+      , humans = List.append model.humans [{name = "Human", health = 5, strength = 2}]
+      , vampires = model.vampires
+      , humanNames = model.humanNames
+      , vampireNames = model.humanNames
+      , humanIndex = model.humanIndex
+      , vampireIndex = model.vampireIndex
+      , aHumanIsDying = model.aHumanIsDying}
+
+    AddVampire ->
+      { population = model.population + 1
+      , humans = model.humans
+      , vampires = List.append model.vampires [{name = "Vampire", health = 5, strength = 4}]
+      , humanNames = model.humanNames
+      , vampireNames = model.humanNames
+      , humanIndex = model.humanIndex
+      , vampireIndex = model.vampireIndex
+      , aHumanIsDying = model.aHumanIsDying}
+      
+    Interact ->
+      { population = model.population
+      , humans =
+        (feedAllVampires model).humans
+          |> healTheHumans
+      , vampires =
+        (feedAllVampires model).vampires
+          {- |> huntTheVampires-}
+      , humanNames = model.humanNames
+      , vampireNames = model.humanNames
+      , humanIndex = model.humanIndex
+      , vampireIndex = model.vampireIndex
+      , aHumanIsDying = model.aHumanIsDying}      
+      
+      
+-- VIEW
+
+view model =
+  div []
+    [ button [ onClick AddHuman ] [ text "Add Human" ]
+    , button [ onClick AddVampire ] [ text "Add Vampire" ]
+    , button [ onClick Interact ] [ text "A Day Goes By" ]
+    , div [] [ text (showModel model)]
+    ]
+    
+-- showModel: Model -> String --NOTE: this type annotation doesn't work even though the function does
+showModel model = 
+  list model.vampires
+    |> String.append (list model.humans)
+    |> String.append "Your town contains: \n"
+    {- NOTE: When I need to add in things like "Somebody died!" how do I do that?
+    Maybe add a variable to the model and append the extra messages only if the
+    variable is true? -}
+
+list: List Villager -> String
+list villagerList =
+  case villagerList of
+    [] -> ""
+    [head] ->
+      (toString head.strength)
+        |> String.append ", Strength = "
+        |> String.append (toString head.health)
+        |> String.append ": Health = "
+        |> String.append head.name
+        |> String.append "\n"
+        -- NOTE: how do I get the newline character to work?
+    (head::tail) ->
+      String.append (list [head]) (list tail)
+
+{- NOTE: UGH how do I want to format this, what do I want the functions to take in...-}
+feedAllVampires: Model -> Model
+feedAllVampires thisModel =
+  let
+    newVampires = []
+    newHumans = []
+    humanIndex = thisModel.humanIndex
+    vampireIndex = thisModel.vampireIndex
+  in
+  case thisModel.vampires of
+    [] ->
+      thisModel
+    [head] ->
+      feedOneVampire thisModel
+    (head::tail) ->
+    {-
+      let
+        tailModel = feedAllVampires thisModel (List.drop 1 vamps)
+        headModel = feedAllVampires thisModel (List.take 1 vamps)
+      in
+        { population =
+          case List.minimum [tailModel.population, headModel.population] of
+            Just min ->
+              min
+            Nothing ->
+              headModel.population
+        , humans =
+          if ((List.length tailModel.humans) > (List.length headModel.humans)) then
+            headModel.humans
+          else
+            tailModel.humans
+        , vampires =
+          if ((List.length tailModel.vampires) > (List.length headModel.vampires)) then
+            headModel.vampires
+          else
+            tailModel.vampires
+        , humanNames = thisModel.humanNames
+        , vampireNames = thisModel.vampireNames
+        , humanIndex = headModel.humanIndex
+        , vampireIndex = headModel.vampireIndex
+        , aHumanIsDying = 
+          if (tailModel.aHumanIsDying || headModel.aHumanIsDying) then
+            True
+          else
+            False
+        }
+        -}
+        
+        {-{ population = 
+      , humans =
+        let
+          currHuman = get humanIndex thisModel.humans
+        in
+        case currHuman of
+          Just human ->
+            newHumans ++ { name = currHuman.name
+                         , health = currHuman.health - 1
+                         , strength = currHuman.strength
+                         }
+          Nothing ->
+            newHumans
+      }-}
+
+feedOneVampire: Model -> Model
+feedOneVampire thisModel =
+  let
+    vampireIndex = thisModel.vampireIndex
+    humanIndex = thisModel.humanIndex
+    thisHuman = get humanIndex thisModel.humans
+    thisVampire = get vampireIndex thisModel.vampires
+    newHumans =
+      case thisHuman of
+        Just thisHuman ->
+          List.take (humanIndex - 1) thisModel.humans
+            |> if (thisHuman.health >= 2) then
+                 List.append [{ name = thisHuman.name
+                             , health = thisHuman.health - 1
+                             , strength = thisHuman.strength
+                             }]
+               else
+                 List.append []
+{-          List.take (humanIndex - 1) thisModel.humans
+            |> if (thisHuman.health >= 2) then
+                 List.append [{ name = thisHuman.name
+                             , health = thisHuman.health - 1
+                             , strength = thisHuman.strength
+                             }]
+               else
+                 List.append []
+            |> List.append (List.drop humanIndex thisModel.humans)
+            -}
+        Nothing ->
+          thisModel.humans
+    newVampires = 
+      case thisVampire of
+        Just vamp ->
+          List.take (vampireIndex - 1) thisModel.vampires
+            |> List.append [{ name = vamp.name
+                           , health = vamp.health + 1
+                           , strength = vamp.strength
+                           }]
+            |> List.append (List.drop vampireIndex thisModel.vampires)
+        Nothing ->
+          List.drop vampireIndex thisModel.vampires
+            |> List.append (List.drop vampireIndex thisModel.vampires)
+  in
+  { population =
+    case thisHuman of
+      Just thisHuman ->
+        if thisHuman.health <= 1 then
+          thisModel.population - 1
+        else
+          thisModel.population
+      Nothing ->
+        thisModel.population - 1
+  , humans = newHumans
+  , vampires = newVampires
+  , humanNames = thisModel.humanNames
+  , vampireNames = thisModel.humanNames
+  , humanIndex = (humanIndex + 1) % (List.length newHumans)
+  , vampireIndex = (vampireIndex + 1) % (List.length newVampires)
+  , aHumanIsDying = 
+    case thisHuman of
+      Just thisHuman ->
+        if thisHuman.health <= 2 then
+          True
+        else
+          False
+      Nothing ->
+        thisModel.aHumanIsDying
+  }
+
+healTheHumans: List Villager -> List Villager
+healTheHumans humans = 
+  case humans of
+    [] ->
+      []
+    [head] ->
+      [{name = head.name
+       , health = head.health + 1
+       , strength = head.strength
+       }]
+    (head::tail) ->
+      List.append (healTheHumans [head]) (healTheHumans tail)
+      
+
+huntTheVampires: List Villager -> Villager -> {humans: List Villager, vampire: Villager}
+huntTheVampires theseHumans thisVampire =
+  if (model.aHumanIsDying == True) then
+    if ((sumStrength theseHumans) > thisVampire.strength) then
+      { humans = theseHumans
+      , vampire = thisVampire
+      }
+      --NOTE: TODO: kill the vampire
+    else
+      { humans = damage theseHumans (thisVampire.strength - (sumStrength theseHumans))
+      , vampire = thisVampire
+      }
+  else
+    { humans = theseHumans
+    , vampire = thisVampire
+    }
+
+sumStrength: List Villager -> Int
+sumStrength theseVillagers =
+  case theseVillagers of
+    [] -> 0
+    [head] -> head.strength
+    (head::tail) ->
+      (head.strength + (sumStrength tail))
+      -- NOTE: gives me a syntax error and idk why
+
+damage: List Villager -> Int -> List Villager
+damage theseVillagers strengthDiff =
+  case theseVillagers of
+    [] -> []
+    [head] ->
+      let
+        newHealth = head.health - strengthDiff
+      in
+        if (newHealth <= 0) then
+          []
+        else
+          [{ name = head.name
+           , health = newHealth
+           , strength = head.strength
+           }]
+    (head::tail) ->
+      List.append (damage [head] strengthDiff) (damage tail strengthDiff)
+
+get: Int -> List a -> Maybe a
+get n xs =
+  List.head (List.drop n xs)
