@@ -113,137 +113,122 @@ list villagerList =
     (head::tail) ->
       String.append (list [head]) (list tail)
 
-{- NOTE: UGH how do I want to format this, what do I want the functions to take in...-}
 feedAllVampires: Model -> Model
 feedAllVampires thisModel =
-  let
-    newVampires = []
-    newHumans = []
-    humanIndex = thisModel.humanIndex
-    vampireIndex = thisModel.vampireIndex
-  in
   case thisModel.vampires of
     [] ->
       thisModel
     [head] ->
       feedOneVampire thisModel
     (head::tail) ->
-    {-
       let
-        tailModel = feedAllVampires thisModel (List.drop 1 vamps)
-        headModel = feedAllVampires thisModel (List.take 1 vamps)
+        headModel = feedOneVampire
+          { population = thisModel.population
+          , humans = thisModel.humans
+          , vampires = [head]
+          , humanNames = thisModel.humanNames
+          , vampireNames = thisModel.vampireNames
+          , humanIndex = thisModel.humanIndex
+          , vampireIndex = thisModel.vampireIndex
+          , aHumanIsDying = thisModel.aHumanIsDying
+          }
+        tailModel = feedAllVampires
+          { population = thisModel.population
+          , humans = thisModel.humans
+          , vampires = tail
+          , humanNames = thisModel.humanNames
+          , vampireNames = thisModel.vampireNames
+          , humanIndex = thisModel.humanIndex
+          , vampireIndex = thisModel.vampireIndex
+          , aHumanIsDying = thisModel.aHumanIsDying
+          }
       in
-        { population =
-          case List.minimum [tailModel.population, headModel.population] of
-            Just min ->
-              min
-            Nothing ->
-              headModel.population
-        , humans =
-          if ((List.length tailModel.humans) > (List.length headModel.humans)) then
-            headModel.humans
-          else
-            tailModel.humans
-        , vampires =
-          if ((List.length tailModel.vampires) > (List.length headModel.vampires)) then
-            headModel.vampires
-          else
-            tailModel.vampires
-        , humanNames = thisModel.humanNames
-        , vampireNames = thisModel.vampireNames
-        , humanIndex = headModel.humanIndex
-        , vampireIndex = headModel.vampireIndex
-        , aHumanIsDying = 
-          if (tailModel.aHumanIsDying || headModel.aHumanIsDying) then
-            True
-          else
-            False
-        }
-        -}
-        
-        {-{ population = 
-      , humans =
-        let
-          currHuman = get humanIndex thisModel.humans
-        in
-        case currHuman of
-          Just human ->
-            newHumans ++ { name = currHuman.name
-                         , health = currHuman.health - 1
-                         , strength = currHuman.strength
-                         }
-          Nothing ->
-            newHumans
-      }-}
+      { population = 
+        if headModel.population <= tailModel.population then
+          headModel.population
+        else
+          tailModel.population
+      , humans = List.concat [headModel.humans, tailModel.humans]
+      , vampires = List.concat [headModel.vampires, tailModel.vampires]
+      , humanNames = thisModel.humanNames
+      , vampireNames = thisModel.humanNames
+      , humanIndex = tailModel.humanIndex + 1
+      , vampireIndex = tailModel.vampireIndex + 1
+      , aHumanIsDying =
+        if (headModel.aHumanIsDying || tailModel.aHumanIsDying) then
+          True
+        else
+          False
+      }
 
 feedOneVampire: Model -> Model
 feedOneVampire thisModel =
   let
     vampireIndex = thisModel.vampireIndex
     humanIndex = thisModel.humanIndex
-    thisHuman = get humanIndex thisModel.humans
-    thisVampire = get vampireIndex thisModel.vampires
-    newHumans =
-      case thisHuman of
-        Just thisHuman ->
-          List.take (humanIndex - 1) thisModel.humans
-            |> if (thisHuman.health >= 2) then
-                 List.append [{ name = thisHuman.name
-                             , health = thisHuman.health - 1
-                             , strength = thisHuman.strength
-                             }]
-               else
-                 List.append []
-{-          List.take (humanIndex - 1) thisModel.humans
-            |> if (thisHuman.health >= 2) then
-                 List.append [{ name = thisHuman.name
-                             , health = thisHuman.health - 1
-                             , strength = thisHuman.strength
-                             }]
-               else
-                 List.append []
-            |> List.append (List.drop humanIndex thisModel.humans)
-            -}
+    currHuman = get humanIndex thisModel.humans
+    currVamp = get vampireIndex thisModel.vampires
+    
+    newHuman =
+      case currHuman of
+        Just currHuman ->
+          { name = currHuman.name
+          , health = currHuman.health - 1
+          , strength = currHuman.strength
+          }
         Nothing ->
-          thisModel.humans
+          { name = "Drank From a Dead Guy"
+          , health = 0
+          , strength = 0
+          }
+    {- These filler characters should be deleted from the list by the end of this
+    function. Their names will be useful in debugging if they ever show up. -}
+    newVamp =
+      case currVamp of
+        Just currVamp ->
+          { name = currVamp.name
+          , health = currVamp.health + 1
+          , strength = currVamp.strength
+          }
+        Nothing ->
+          { name = "Dead Guy Tried to Drink"
+          , health = 0
+          , strength = 0
+          }
+          
+    beforeVamps = List.take (vampireIndex - 1) thisModel.vampires
+    afterVamps = List.drop vampireIndex thisModel.vampires
+    beforeHumans = List.take (humanIndex - 1) thisModel.humans
+    afterHumans = List.drop humanIndex thisModel.humans
+    
+    newHumans = 
+      if newHuman.health <= 0 then
+        List.concat [beforeHumans, afterHumans]
+      else
+        List.concat [beforeHumans, [newHuman], afterHumans]
     newVampires = 
-      case thisVampire of
-        Just vamp ->
-          List.take (vampireIndex - 1) thisModel.vampires
-            |> List.append [{ name = vamp.name
-                           , health = vamp.health + 1
-                           , strength = vamp.strength
-                           }]
-            |> List.append (List.drop vampireIndex thisModel.vampires)
-        Nothing ->
-          List.drop vampireIndex thisModel.vampires
-            |> List.append (List.drop vampireIndex thisModel.vampires)
+      if newVamp.health <= 0 then
+        List.concat [beforeVamps, afterVamps]
+      else
+        List.concat [(beforeVamps), [newVamp], afterVamps]
   in
-  { population =
-    case thisHuman of
-      Just thisHuman ->
-        if thisHuman.health <= 1 then
-          thisModel.population - 1
-        else
-          thisModel.population
-      Nothing ->
+    { population =
+      if newHuman.health <= 0 then
         thisModel.population - 1
-  , humans = newHumans
-  , vampires = newVampires
-  , humanNames = thisModel.humanNames
-  , vampireNames = thisModel.humanNames
-  , humanIndex = (humanIndex + 1) % (List.length newHumans)
-  , vampireIndex = (vampireIndex + 1) % (List.length newVampires)
-  , aHumanIsDying = 
-    case thisHuman of
-      Just thisHuman ->
-        if thisHuman.health <= 2 then
-          True
-        else
-          False
-      Nothing ->
-        thisModel.aHumanIsDying
-  }
+      else
+        thisModel.population
+    , humans = newHumans
+    , vampires = newVampires
+    , humanNames = thisModel.humanNames
+    , vampireNames = thisModel.vampireNames
+    , humanIndex = (thisModel.humanIndex + 1) % (List.length newHumans)
+    , vampireIndex = (thisModel.vampireIndex + 1) % (List.length newVampires)
+    , aHumanIsDying =
+      if newHuman.health <= 2 then
+        True
+      else
+        False
+    }
 
 healTheHumans: List Villager -> List Villager
 healTheHumans humans = 
@@ -259,22 +244,48 @@ healTheHumans humans =
       List.append (healTheHumans [head]) (healTheHumans tail)
       
 
-huntTheVampires: List Villager -> Villager -> {humans: List Villager, vampire: Villager}
-huntTheVampires theseHumans thisVampire =
-  if (model.aHumanIsDying == True) then
-    if ((sumStrength theseHumans) > thisVampire.strength) then
-      { humans = theseHumans
-      , vampire = thisVampire
+huntTheVampires: Model -> Model
+huntTheVampires thisModel =
+  if thisModel.aHumanIsDying then
+    let
+      thisVampire =
+        case get thisModel.vampireIndex thisModel.vampires of
+          Just vamp ->
+            vamp
+          Nothing ->
+            { name = "Tried to fight a nonexistent vampire"
+            , health = 0
+            , strength = 0
+            }
+      beforeVamps = List.take (thisModel.vampireIndex - 1) thisModel.vampires
+      afterVamps = List.drop thisModel.vampireIndex thisModel.vampires
+    in
+    if ((sumStrength thisModel.humans) > thisVampire.strength) then
+      { population = thisModel.population - 1
+      , humans = thisModel.humans
+      , vampires = List.concat [beforeVamps, afterVamps]
+      , humanNames = thisModel.humanNames
+      , vampireNames = thisModel.vampireNames
+      , humanIndex = thisModel.humanIndex
+      , vampireIndex = thisModel.vampireIndex
+      , aHumanIsDying = thisModel.aHumanIsDying
+      {- TODO: The above line will cause bugs if humans are brought near death from
+      battle, but weren't dying before. Fix this someday. -}
       }
-      --NOTE: TODO: kill the vampire
     else
-      { humans = damage theseHumans (thisVampire.strength - (sumStrength theseHumans))
-      , vampire = thisVampire
+      { population = thisModel.population - 1
+      , humans = damage thisModel.humans (thisVampire.strength - (sumStrength thisModel.humans))
+      , vampires = thisModel.vampires
+      , humanNames = thisModel.humanNames
+      , vampireNames = thisModel.vampireNames
+      , humanIndex = thisModel.humanIndex
+      , vampireIndex = thisModel.vampireIndex
+      , aHumanIsDying = thisModel.aHumanIsDying
+      {- TODO: The above line will cause bugs if humans are brought near death from
+      battle, but weren't dying before. Fix this someday. -}
       }
   else
-    { humans = theseHumans
-    , vampire = thisVampire
-    }
+    thisModel
 
 sumStrength: List Villager -> Int
 sumStrength theseVillagers =
