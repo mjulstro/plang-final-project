@@ -1,6 +1,7 @@
 import Html exposing (beginnerProgram, div, button, text)
 import Html.Events exposing (onClick)
 import List
+import Random
 
 
 main =
@@ -65,18 +66,10 @@ update msg model =
       , aHumanIsDying = model.aHumanIsDying}
       
     Interact ->
-      { population = model.population
-      , humans =
-        (feedAllVampires model).humans
-          |> healTheHumans
-      , vampires =
-        (feedAllVampires model).vampires
-          {- |> huntTheVampires-}
-      , humanNames = model.humanNames
-      , vampireNames = model.humanNames
-      , humanIndex = model.humanIndex
-      , vampireIndex = model.vampireIndex
-      , aHumanIsDying = model.aHumanIsDying}      
+      model
+        |> feedAllVampires
+        |> healTheHumans
+        |> huntTheVampires
       
       
 -- VIEW
@@ -230,8 +223,20 @@ feedOneVampire thisModel =
         False
     }
 
-healTheHumans: List Villager -> List Villager
-healTheHumans humans = 
+healTheHumans: Model -> Model
+healTheHumans thisModel =
+  { population = thisModel.population
+    , humans = heal thisModel.humans
+    , vampires = thisModel.vampires
+    , humanNames = thisModel.humanNames
+    , vampireNames = thisModel.vampireNames
+    , humanIndex = thisModel.humanIndex
+    , vampireIndex = thisModel.vampireIndex
+    , aHumanIsDying = thisModel.aHumanIsDying -- again, maybe change this later
+    }
+
+heal: List Villager -> List Villager
+heal humans = 
   case humans of
     [] ->
       []
@@ -241,7 +246,7 @@ healTheHumans humans =
        , strength = head.strength
        }]
     (head::tail) ->
-      List.append (healTheHumans [head]) (healTheHumans tail)
+      List.append (heal [head]) (heal tail)
       
 
 huntTheVampires: Model -> Model
