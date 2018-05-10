@@ -1,8 +1,6 @@
 import Html exposing (beginnerProgram, div, button, text)
 import Html.Events exposing (onClick)
 import List
-import Random
-
 
 main =
   beginnerProgram { model = model, view = view, update = update }
@@ -11,24 +9,14 @@ main =
 -- MODEL
 
 type alias Model =
-  { population: Int
-  , humans: List Villager
+  { humans: List Villager
   , vampires: List Villager
-  , humanNames: List String
-  , vampireNames: List String
-  , humanIndex: Int
-  , vampireIndex: Int
   , aHumanIsDying: Bool
   }
   
 model = 
-  { population = 0
-  , humans = []
+  { humans = []
   , vampires = []
-  , humanNames = ["Maggie", "Jack", "Jill", "Nathan", "Sam"]
-  , vampireNames = ["Kanaya", "Victoire", "Horatio", "Everild", "Donovan"]
-  , humanIndex = 0
-  , vampireIndex = 0
   , aHumanIsDying = False}
   
 type alias Villager =
@@ -46,24 +34,21 @@ update: Msg -> Model -> Model
 update msg model =
   case msg of
     AddHuman ->
-      { population = model.population + 1
-      , humans = List.append model.humans [{name = "Human", health = 5, strength = 2}]
-      , vampires = model.vampires
-      , humanNames = model.humanNames
-      , vampireNames = model.humanNames
-      , humanIndex = model.humanIndex
-      , vampireIndex = model.vampireIndex
-      , aHumanIsDying = model.aHumanIsDying}
+      let
+        humanNames = ["Maggie", "Jack", "Jill", "Nathan", "Sam"]
+      in
+        { humans = List.append model.humans [{name = "Human", health = 5, strength = 2}]
+        , vampires = model.vampires
+        , aHumanIsDying = model.aHumanIsDying
+        }
 
     AddVampire ->
-      { population = model.population + 1
-      , humans = model.humans
-      , vampires = List.append model.vampires [{name = "Vampire", health = 5, strength = 4}]
-      , humanNames = model.humanNames
-      , vampireNames = model.humanNames
-      , humanIndex = model.humanIndex
-      , vampireIndex = model.vampireIndex
-      , aHumanIsDying = model.aHumanIsDying}
+      let
+        vampireNames = ["Kanaya", "Victoire", "Horatio", "Everild", "Donovan"]
+      in
+        { humans = model.humans
+        , vampires = List.append model.vampires [{name = "Vampire", health = 5, strength = 4}]
+        , aHumanIsDying = model.aHumanIsDying}
       
     Interact ->
       model
