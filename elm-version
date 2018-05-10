@@ -11,13 +11,12 @@ main =
 type alias Model =
   { humans: List Villager
   , vampires: List Villager
-  , aHumanIsDying: Bool
   }
   
 model = 
   { humans = []
   , vampires = []
-  , aHumanIsDying = False}
+  }
   
 type alias Villager =
   { name : String
@@ -39,7 +38,6 @@ update msg model =
       in
         { humans = List.append model.humans [{name = "Human", health = 5, strength = 2}]
         , vampires = model.vampires
-        , aHumanIsDying = model.aHumanIsDying
         }
 
     AddVampire ->
@@ -48,13 +46,13 @@ update msg model =
       in
         { humans = model.humans
         , vampires = List.append model.vampires [{name = "Vampire", health = 5, strength = 4}]
-        , aHumanIsDying = model.aHumanIsDying}
+        }
       
     Interact ->
       model
-        |> feedAllVampires
+        |> feedTheVampires
         |> healTheHumans
-        |> huntTheVampires
+        --|> huntTheVampires
       
       
 -- VIEW
@@ -91,195 +89,95 @@ list villagerList =
     (head::tail) ->
       String.append (list [head]) (list tail)
 
-feedAllVampires: Model -> Model
-feedAllVampires thisModel =
-  case thisModel.vampires of
-    [] ->
-      thisModel
-    [head] ->
-      feedOneVampire thisModel
-    (head::tail) ->
-      let
-        headModel = feedOneVampire
-          { population = thisModel.population
-          , humans = thisModel.humans
-          , vampires = [head]
-          , humanNames = thisModel.humanNames
-          , vampireNames = thisModel.vampireNames
-          , humanIndex = thisModel.humanIndex
-          , vampireIndex = thisModel.vampireIndex
-          , aHumanIsDying = thisModel.aHumanIsDying
-          }
-        tailModel = feedAllVampires
-          { population = thisModel.population
-          , humans = thisModel.humans
-          , vampires = tail
-          , humanNames = thisModel.humanNames
-          , vampireNames = thisModel.vampireNames
-          , humanIndex = thisModel.humanIndex
-          , vampireIndex = thisModel.vampireIndex
-          , aHumanIsDying = thisModel.aHumanIsDying
-          }
-      in
-      { population = 
-        if headModel.population <= tailModel.population then
-          headModel.population
-        else
-          tailModel.population
-      , humans = List.concat [headModel.humans, tailModel.humans]
-      , vampires = List.concat [headModel.vampires, tailModel.vampires]
-      , humanNames = thisModel.humanNames
-      , vampireNames = thisModel.humanNames
-      , humanIndex = tailModel.humanIndex + 1
-      , vampireIndex = tailModel.vampireIndex + 1
-      , aHumanIsDying =
-        if (headModel.aHumanIsDying || tailModel.aHumanIsDying) then
-          True
-        else
-          False
-      }
 
-feedOneVampire: Model -> Model
-feedOneVampire thisModel =
+
+-- FUNCTIONS
+
+
+population model =
+  (List.length model.vampires) + (List.length model.humans)
+
+
+feedTheVampires: Model -> Model
+feedTheVampires model =
   let
-    vampireIndex = thisModel.vampireIndex
-    humanIndex = thisModel.humanIndex
-    currHuman = get humanIndex thisModel.humans
-    currVamp = get vampireIndex thisModel.vampires
-    
-    newHuman =
-      case currHuman of
-        Just currHuman ->
-          { name = currHuman.name
-          , health = currHuman.health - 1
-          , strength = currHuman.strength
-          }
-        Nothing ->
-          { name = "Drank From a Dead Guy"
-          , health = 0
-          , strength = 0
-          }
-    {- These filler characters should be deleted from the list by the end of this
-    function. Their names will be useful in debugging if they ever show up. -}
-    newVamp =
-      case currVamp of
-        Just currVamp ->
-          { name = currVamp.name
-          , health = currVamp.health + 1
-          , strength = currVamp.strength
-          }
-        Nothing ->
-          { name = "Dead Guy Tried to Drink"
-          , health = 0
-          , strength = 0
-          }
-          
-    beforeVamps = List.take (vampireIndex - 1) thisModel.vampires
-    afterVamps = List.drop vampireIndex thisModel.vampires
-    beforeHumans = List.take (humanIndex - 1) thisModel.humans
-    afterHumans = List.drop humanIndex thisModel.humans
-    
-    newHumans = 
-      if newHuman.health <= 0 then
-        List.concat [beforeHumans, afterHumans]
-      else
-        List.concat [beforeHumans, [newHuman], afterHumans]
-    newVampires = 
-      if newVamp.health <= 0 then
-        List.concat [beforeVamps, afterVamps]
-      else
-        List.concat [(beforeVamps), [newVamp], afterVamps]
+    numVamps = List.length model.vampires
+    numHums = List.length model.humans
   in
-    { population =
-      if newHuman.health <= 0 then
-        thisModel.population - 1
-      else
-        thisModel.population
-    , humans = newHumans
-    , vampires = newVampires
-    , humanNames = thisModel.humanNames
-    , vampireNames = thisModel.vampireNames
-    , humanIndex = (thisModel.humanIndex + 1) % (List.length newHumans)
-    , vampireIndex = (thisModel.vampireIndex + 1) % (List.length newVampires)
-    , aHumanIsDying =
-      if newHuman.health <= 2 then
-        True
-      else
-        False
+
+  if (numVamps > numHums) then
+    let
+    in
+    { humans = damageSlowly model.humans numVamps
+    , vampires = heal model.vampires 1
     }
+
+  else if (numHums > numVamps) then
+    let
+      bittenHumans = List.take numVamps model.humans
+      safeHumans = List.drop numVamps model.humans
+    in
+    { humans = List.concat [safeHumans, (damage bittenHumans 1)]
+    , vampires = heal model.vampires 1
+    }
+
+  else
+    { humans = damage model.humans 1
+    , vampires = heal model.vampires 1
+    }
+
+
+damageSlowly: List Villager -> Int -> List Villager
+damageSlowly villagers num =
+  let
+    firstDamage = num // (List.length villagers)
+    midFight = damage villagers firstDamage
+    leftover = num % (List.length villagers)
+    moreHurt = List.take leftover midFight
+  in
+  List.concat [(List.drop leftover midFight), (damage moreHurt 1)]
+
 
 healTheHumans: Model -> Model
 healTheHumans thisModel =
-  { population = thisModel.population
-    , humans = heal thisModel.humans
-    , vampires = thisModel.vampires
-    , humanNames = thisModel.humanNames
-    , vampireNames = thisModel.vampireNames
-    , humanIndex = thisModel.humanIndex
-    , vampireIndex = thisModel.vampireIndex
-    , aHumanIsDying = thisModel.aHumanIsDying -- again, maybe change this later
-    }
+  { humans = heal thisModel.humans 1
+  , vampires = thisModel.vampires
+  }
 
-heal: List Villager -> List Villager
-heal humans = 
+heal: List Villager -> Int -> List Villager
+heal humans num = 
   case humans of
     [] ->
       []
     [head] ->
       [{name = head.name
-       , health = head.health + 1
+       , health = head.health + num
        , strength = head.strength
        }]
     (head::tail) ->
-      List.append (heal [head]) (heal tail)
-      
+      List.append (heal [head] num) (heal tail num)
 
-huntTheVampires: Model -> Model
-huntTheVampires thisModel =
-  if thisModel.aHumanIsDying then
-    let
-      thisVampire =
-        case get thisModel.vampireIndex thisModel.vampires of
-          Just vamp ->
-            vamp
-          Nothing ->
-            { name = "Tried to fight a nonexistent vampire"
-            , health = 0
-            , strength = 0
-            }
-      beforeVamps = List.take (thisModel.vampireIndex - 1) thisModel.vampires
-      afterVamps = List.drop thisModel.vampireIndex thisModel.vampires
-    in
-    if ((sumStrength thisModel.humans) > thisVampire.strength) then
-      { population = thisModel.population - 1
-      , humans = thisModel.humans
-      , vampires = List.concat [beforeVamps, afterVamps]
-      , humanNames = thisModel.humanNames
-      , vampireNames = thisModel.vampireNames
-      , humanIndex = thisModel.humanIndex
-      , vampireIndex = thisModel.vampireIndex
-      , aHumanIsDying = thisModel.aHumanIsDying
-      {- TODO: The above line will cause bugs if humans are brought near death from
-      battle, but weren't dying before. Fix this someday. -}
-      }
-    else
-      { population = thisModel.population - 1
-      , humans = damage thisModel.humans (thisVampire.strength - (sumStrength thisModel.humans))
-      , vampires = thisModel.vampires
-      , humanNames = thisModel.humanNames
-      , vampireNames = thisModel.vampireNames
-      , humanIndex = thisModel.humanIndex
-      , vampireIndex = thisModel.vampireIndex
-      , aHumanIsDying = thisModel.aHumanIsDying
-      {- TODO: The above line will cause bugs if humans are brought near death from
-      battle, but weren't dying before. Fix this someday. -}
-      }
-  else
-    thisModel
+
+--huntTheVampires: Model -> Model
+--huntTheVampires thisModel =
+--  if thisModel.aHumanIsDying then
+--    let
+--      thisVampire =
+--        case get thisModel.vampireIndex thisModel.vampires of
+--          Just vamp ->
+--            vamp
+--          Nothing ->
+--            { name = "Tried to fight a nonexistent vampire"
+--            , health = 0
+--            , strength = 0
+--            }
+--      beforeVamps = List.take (thisModel.vampireIndex - 1) thisModel.vampires
+--      afterVamps = List.drop thisModel.vampireIndex thisModel.vampires
+--    in
 
 sumStrength: List Villager -> Int
-sumStrength theseVillagers =
-  case theseVillagers of
+sumStrength villagers =
+  case villagers of
     [] -> 0
     [head] -> head.strength
     (head::tail) ->
@@ -287,8 +185,8 @@ sumStrength theseVillagers =
       -- NOTE: gives me a syntax error and idk why
 
 damage: List Villager -> Int -> List Villager
-damage theseVillagers strengthDiff =
-  case theseVillagers of
+damage villagers strengthDiff =
+  case villagers of
     [] -> []
     [head] ->
       let
