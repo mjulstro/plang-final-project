@@ -11,11 +11,13 @@ main =
 type alias Model =
   { humans: List Villager
   , vampires: List Villager
+  , aHumanIsDying: Bool
   }
   
 model = 
   { humans = []
   , vampires = []
+  , aHumanIsDying = False
   }
   
 type alias Villager =
@@ -38,6 +40,7 @@ update msg model =
       in
         { humans = List.append model.humans [{name = "Human", health = 5, strength = 2}]
         , vampires = model.vampires
+        , aHumanIsDying = False
         }
 
     AddVampire ->
@@ -46,13 +49,14 @@ update msg model =
       in
         { humans = model.humans
         , vampires = List.append model.vampires [{name = "Vampire", health = 5, strength = 4}]
+        , aHumanIsDying = model.aHumanIsDying
         }
       
     Interact ->
       model
         |> feedTheVampires
         |> healTheHumans
-        --|> huntTheVampires
+        -- |> huntTheVampires
       
       
 -- VIEW
@@ -98,32 +102,61 @@ population model =
   (List.length model.vampires) + (List.length model.humans)
 
 
+checkDying: List Villager -> Bool
+checkDying villagers = 
+  case villagers of
+  [] ->
+    False
+  [head] ->
+    if (head.health <= 2) then
+      True
+    else
+      False
+  (head::tail) ->
+    if head.health <= 2 then
+      True
+    else 
+      checkDying tail
+
+
 feedTheVampires: Model -> Model
 feedTheVampires model =
   let
     numVamps = List.length model.vampires
     numHums = List.length model.humans
   in
-
-  if (numVamps > numHums) then
+  if (numHums == 0) then
+    { humans = model.humans
+    , vampires = damage model.vampires 1
+    , aHumanIsDying = False
+    }
+  else if (numVamps > numHums) then
     let
+      newHumans = damageSlowly model.humans numVamps
     in
-    { humans = damageSlowly model.humans numVamps
+    { humans = newHumans
     , vampires = heal model.vampires 1
+    , aHumanIsDying = checkDying newHumans
     }
 
   else if (numHums > numVamps) then
     let
       bittenHumans = List.take numVamps model.humans
       safeHumans = List.drop numVamps model.humans
+      newHumans = List.concat [safeHumans, (damage bittenHumans 1)]
     in
-    { humans = List.concat [safeHumans, (damage bittenHumans 1)]
+    { humans = newHumans
     , vampires = heal model.vampires 1
+    , aHumanIsDying = checkDying newHumans
     }
 
   else
-    { humans = damage model.humans 1
+    let
+      newHumans = damage model.humans 1        
+    in
+    { humans = newHumans
     , vampires = heal model.vampires 1
+    , aHumanIsDying = checkDying newHumans
     }
 
 
@@ -139,9 +172,13 @@ damageSlowly villagers num =
 
 
 healTheHumans: Model -> Model
-healTheHumans thisModel =
-  { humans = heal thisModel.humans 1
-  , vampires = thisModel.vampires
+healTheHumans model =
+  let
+    newHumans = heal model.humans 1
+  in
+  { humans = newHumans
+  , vampires = model.vampires
+  , aHumanIsDying = checkDying newHumans
   }
 
 heal: List Villager -> Int -> List Villager
