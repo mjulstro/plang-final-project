@@ -14,6 +14,7 @@ type alias Model =
   , aHumanIsDying: Bool
   , deathByDrinking: Bool
   , deathInBattle: Bool
+  , starved: Bool
   }
   
 model = 
@@ -22,6 +23,7 @@ model =
   , aHumanIsDying = False
   , deathByDrinking = False
   , deathInBattle = False
+  , starved = False
   }
   
 type alias Villager =
@@ -48,6 +50,7 @@ update msg model =
         , aHumanIsDying = model.aHumanIsDying
         , deathByDrinking = model.deathByDrinking
         , deathInBattle = model.deathInBattle
+        , starved = model.starved
         }
 
     AddVampire ->
@@ -59,6 +62,7 @@ update msg model =
         , aHumanIsDying = model.aHumanIsDying
         , deathByDrinking = model.deathByDrinking
         , deathInBattle = model.deathInBattle
+        , starved = model.starved
         }
       
     Interact ->
@@ -100,8 +104,16 @@ announce model string =
         "\n Someone has died of... excessive exsanguination."
       else
         ""
+    starvingString = 
+      if model.starved then
+        "\n A vampire has died of starvation."
+      else
+        ""
   in
-  String.append string (String.append drinkingString battleString)
+    starvingString
+      |> String.append battleString
+      |> String.append drinkingString
+      |> String.append string
 
 list: List Villager -> String
 list villagerList =
@@ -145,13 +157,20 @@ feedTheVampires model =
   let
     numVamps = List.length model.vampires
     numHums = List.length model.humans
+    newVamps = damage model.vampires 1
+    dead =
+      if List.length newVamps < numVamps then
+        True
+      else
+        False
   in
   if (numHums == 0) then
     { humans = model.humans
-    , vampires = damage model.vampires 1
+    , vampires = newVamps
     , aHumanIsDying = False
     , deathByDrinking = False
     , deathInBattle = False
+    , starved = dead
     }
   else if (numVamps > numHums) then
     let
@@ -167,6 +186,7 @@ feedTheVampires model =
     , aHumanIsDying = checkDying newHumans
     , deathByDrinking = dead
     , deathInBattle = False
+    , starved = False
     }
   else if (numHums > numVamps) then
     let
@@ -184,6 +204,7 @@ feedTheVampires model =
     , aHumanIsDying = checkDying newHumans
     , deathByDrinking = dead
     , deathInBattle = False
+    , starved = False
     }
 
   else
@@ -200,6 +221,7 @@ feedTheVampires model =
     , aHumanIsDying = checkDying newHumans
     , deathByDrinking = dead
     , deathInBattle = False
+    , starved = False
     }
 
 
@@ -224,6 +246,7 @@ healTheHumans model =
   , aHumanIsDying = checkDying newHumans
   , deathByDrinking = model.deathByDrinking
   , deathInBattle = model.deathInBattle
+  , starved = model.starved
   }
 
 heal: List Villager -> Int -> List Villager
@@ -277,6 +300,7 @@ huntTheVampires model =
     , aHumanIsDying = checkDying newHumans
     , deathByDrinking = model.deathByDrinking
     , deathInBattle = dead
+    , starved = model.starved
     }
   else
     model
