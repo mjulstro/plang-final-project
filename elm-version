@@ -69,14 +69,13 @@ view model =
     , div [] [ text (showModel model)]
     ]
     
--- showModel: Model -> String --NOTE: this type annotation doesn't work even though the function does
+-- showModel: Model -> String -- NOTE: this type annotation doesn't work even though the function does
 showModel model = 
   list model.vampires
     |> String.append (list model.humans)
     |> String.append "Your town contains: \n"
-    {- NOTE: When I need to add in things like "Somebody died!" how do I do that?
-    Maybe add a variable to the model and append the extra messages only if the
-    variable is true? -}
+    {- NOTE: make a helper function to add the "someone
+    is dying!" text -}
 
 list: List Villager -> String
 list villagerList =
@@ -97,7 +96,7 @@ list villagerList =
 
 -- FUNCTIONS
 
-
+population: Model -> Int
 population model =
   (List.length model.vampires) + (List.length model.humans)
 
@@ -195,22 +194,39 @@ heal humans num =
       List.append (heal [head] num) (heal tail num)
 
 
---huntTheVampires: Model -> Model
---huntTheVampires thisModel =
---  if thisModel.aHumanIsDying then
---    let
---      thisVampire =
---        case get thisModel.vampireIndex thisModel.vampires of
---          Just vamp ->
---            vamp
---          Nothing ->
---            { name = "Tried to fight a nonexistent vampire"
---            , health = 0
---            , strength = 0
---            }
---      beforeVamps = List.take (thisModel.vampireIndex - 1) thisModel.vampires
---      afterVamps = List.drop thisModel.vampireIndex thisModel.vampires
---    in
+huntTheVampires: Model -> Model
+huntTheVampires model =
+  if model.aHumanIsDying then
+    let
+      hums = model.humans
+      vamps = model.vampires
+      humStrength = sumStrength hums
+      vamp = List.head vamps
+      newHumans = 
+        case vamp of
+          Just vamp ->
+            if vamp.strength > humStrength then
+              damage hums (vamp.strength - humStrength)
+            else
+              hums
+          Nothing ->
+            hums
+      newVampires =
+        case vamp of
+          Just vamp ->
+            if vamp.strength < humStrength then
+              List.drop 1 vamps
+            else
+              vamps
+          Nothing ->
+            vamps
+    in
+    { humans = newHumans
+    , vampires = newVampires
+    , aHumanIsDying = checkDying newHumans
+    }
+  else
+    model
 
 sumStrength: List Villager -> Int
 sumStrength villagers =
