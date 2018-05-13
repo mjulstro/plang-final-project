@@ -12,18 +12,23 @@ type alias Model =
   { humans: List Villager
   , vampires: List Villager
   , aHumanIsDying: Bool
+  , deathByDrinking: Bool
+  , deathInBattle: Bool
   }
   
 model = 
   { humans = []
   , vampires = []
   , aHumanIsDying = False
+  , deathByDrinking = False
+  , deathInBattle = False
   }
   
 type alias Villager =
   { name : String
   , health : Int
-  , strength : Int}
+  , strength : Int
+  }
 
 
 
@@ -40,7 +45,9 @@ update msg model =
       in
         { humans = List.append model.humans [{name = "Human", health = 5, strength = 2}]
         , vampires = model.vampires
-        , aHumanIsDying = False
+        , aHumanIsDying = model.aHumanIsDying
+        , deathByDrinking = model.deathByDrinking
+        , deathInBattle = model.deathInBattle
         }
 
     AddVampire ->
@@ -50,13 +57,15 @@ update msg model =
         { humans = model.humans
         , vampires = List.append model.vampires [{name = "Vampire", health = 5, strength = 4}]
         , aHumanIsDying = model.aHumanIsDying
+        , deathByDrinking = model.deathByDrinking
+        , deathInBattle = model.deathInBattle
         }
       
     Interact ->
       model
         |> feedTheVampires
         |> healTheHumans
-        -- |> huntTheVampires
+        |> huntTheVampires
       
       
 -- VIEW
@@ -74,8 +83,25 @@ showModel model =
   list model.vampires
     |> String.append (list model.humans)
     |> String.append "Your town contains: \n"
+    |> announce model
     {- NOTE: make a helper function to add the "someone
     is dying!" text -}
+    
+announce: Model -> String -> String
+announce model string =
+  let
+    battleString = 
+      if model.deathInBattle then
+        "\n Someone has died in battle!"
+      else
+        ""
+    drinkingString =
+      if model.deathByDrinking then
+        "\n Someone has died of... excessive exsanguination."
+      else
+        ""
+  in
+  String.append string (String.append drinkingString battleString)
 
 list: List Villager -> String
 list villagerList =
@@ -95,10 +121,6 @@ list villagerList =
 
 
 -- FUNCTIONS
-
-population: Model -> Int
-population model =
-  (List.length model.vampires) + (List.length model.humans)
 
 
 checkDying: List Villager -> Bool
@@ -128,34 +150,56 @@ feedTheVampires model =
     { humans = model.humans
     , vampires = damage model.vampires 1
     , aHumanIsDying = False
+    , deathByDrinking = False
+    , deathInBattle = False
     }
   else if (numVamps > numHums) then
     let
       newHumans = damageSlowly model.humans numVamps
+      dead = 
+        if List.length newHumans < List.length model.humans then
+          True
+        else
+          False
     in
     { humans = newHumans
     , vampires = heal model.vampires 1
     , aHumanIsDying = checkDying newHumans
+    , deathByDrinking = dead
+    , deathInBattle = False
     }
-
   else if (numHums > numVamps) then
     let
       bittenHumans = List.take numVamps model.humans
       safeHumans = List.drop numVamps model.humans
       newHumans = List.concat [safeHumans, (damage bittenHumans 1)]
+      dead = 
+        if List.length newHumans < List.length model.humans then
+          True
+        else
+          False
     in
     { humans = newHumans
     , vampires = heal model.vampires 1
     , aHumanIsDying = checkDying newHumans
+    , deathByDrinking = dead
+    , deathInBattle = False
     }
 
   else
     let
-      newHumans = damage model.humans 1        
+      newHumans = damage model.humans 1       
+      dead = 
+        if List.length newHumans < List.length model.humans then
+          True
+        else
+          False 
     in
     { humans = newHumans
     , vampires = heal model.vampires 1
     , aHumanIsDying = checkDying newHumans
+    , deathByDrinking = dead
+    , deathInBattle = False
     }
 
 
@@ -178,6 +222,8 @@ healTheHumans model =
   { humans = newHumans
   , vampires = model.vampires
   , aHumanIsDying = checkDying newHumans
+  , deathByDrinking = model.deathByDrinking
+  , deathInBattle = model.deathInBattle
   }
 
 heal: List Villager -> Int -> List Villager
@@ -220,10 +266,17 @@ huntTheVampires model =
               vamps
           Nothing ->
             vamps
+      dead = 
+        if List.length newHumans < List.length hums || List.length newVampires < List.length vamps then
+          True
+        else
+          False 
     in
     { humans = newHumans
     , vampires = newVampires
     , aHumanIsDying = checkDying newHumans
+    , deathByDrinking = model.deathByDrinking
+    , deathInBattle = dead
     }
   else
     model
@@ -235,7 +288,6 @@ sumStrength villagers =
     [head] -> head.strength
     (head::tail) ->
       (head.strength + (sumStrength tail))
-      -- NOTE: gives me a syntax error and idk why
 
 damage: List Villager -> Int -> List Villager
 damage villagers strengthDiff =
